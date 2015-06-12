@@ -1,0 +1,810 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="utf-8">
+
+		<title>How we used Ruby to build Locaweb's cloud</title>
+
+		<meta name="description" content="How we used Ruby to build Locaweb's cloud">
+		<meta name="author" content="PotHix">
+
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<link rel="stylesheet" href="css/reveal.min.css">
+		<link rel="stylesheet" href="css/theme/default.css" id="theme">
+
+		<link rel="stylesheet" href="lib/css/zenburn.css">
+
+		<!-- If the query includes 'print-pdf', use the PDF print sheet -->
+		<script>
+			document.write( '<link rel="stylesheet" href="css/print/' + ( window.location.search.match( /print-pdf/gi ) ? 'pdf' : 'paper' ) + '.css" type="text/css" media="print">' );
+		</script>
+
+		<!--[if lt IE 9]>
+		<script src="lib/js/html5shiv.js"></script>
+		<![endif]-->
+	</head>
+
+	<body>
+
+		<div class="reveal">
+			<div class="slides">
+				<section>
+					<h1>How we used Ruby to build Locaweb's cloud</h1>
+					<h3>Willian Molinari</h3>
+					<p>
+						<small>a.k.a <a href="http://pothix.com">PotHix</a></small>
+					</p>
+				</section>
+
+				<section>
+					<h2>Motivation</h2>
+				</section>
+
+				<section>
+					<h2>Working at locaweb</h2>
+					<p>on the past 3 years</p>
+				</section>
+
+				<section>
+					<h2>A lot of known people</h2>
+					<a href="http://twitter.com/fnando"><img width="100" height="100" src="img/fnando.png" alt="Nando Vieira"></a>
+					<a href="http://twitter.com/fabiokung"><img width="100" height="100" src="img/fabiokung.jpg" alt="Fabio Kung"></a>
+					<a href="http://twitter.com/rafaelrosafu"><img width="100" height="100" src="img/rafaelrosafu.jpg" alt="Rafael Rosa Fu"></a>
+					<a href="http://twitter.com/morellon"><img width="100" height="100" src="img/morellon.png" alt="Morellon"></a>
+					<a href="http://twitter.com/tinogomes"><img width="100" height="100" src="img/tinogomes.png" alt="Celestino gomes"></a>
+					<a href="http://twitter.com/pahagon"><img width="100" height="100" src="img/pahagon.jpeg" alt="Pahagon"></a>
+					<a href="http://twitter.com/davidpaniz"><img width="100" height="100" src="img/davidpaniz.png" alt="David Paniz"></a>
+				</section>
+
+				<section>
+					<h2>Which problem we wanted to solve</h2>
+				</section>
+
+				<section>
+					<h2>Cloud server</h2>
+				</section>
+
+				<section>
+					<h2>Cloud server technologies</h2>
+					<ul>
+						<li>Perl</li>
+						<li>Java</li>
+						<li>VMware</li>
+					</ul>
+				</section>
+
+				<section>
+					<h2>VMware architecture</h2>
+					<img src="img/cloud-vmware-architecture.jpg">
+				</section>
+
+				<section>
+					<h2>Problems</h2>
+					<p>for both technical and product sides</p>
+				</section>
+
+				<section>
+					<h2>Cloud server PRO</h2>
+				</section>
+
+				<section>
+					<h2>Cloud server PRO technologies</h2>
+					<ul>
+						<li>Ruby</li>
+						<li>Xenserver</li>
+					</ul>
+				</section>
+
+				<section>
+					<h2>Xen architecture</h2>
+					<img src="img/cloud-xen-architecture.jpg">
+				</section>
+
+				<section>
+					<h2>Xenserver, XenAPI and XMLRPC</h2>
+					<p>with a <a href="http://community.citrix.com/display/xs/XenServer+XenAPI.py">python example</a></p>
+				</section>
+
+				<section>
+					<h2>Ruby + XenAPI</h2>
+					<p><a href="https://github.com/locaweb/xenapi-ruby">https://github.com/locaweb/xenapi-ruby</a></p>
+				</section>
+
+				<section>
+					<h2>XenAPI example - get disks</h2>
+					<pre><code data-trim>
+vm_ref = session.VM.get_by_uuid(virtual_machine.uuid)
+vm_vbds_refs = session.VM.get_record(vm_ref)["VBDs"]
+disks = vm_vbds_refs.inject({}) do |disks, vm_vbd_ref|
+  vm_vbd_record = session.VBD.get_record(vm_vbd_ref)
+  if vm_vbd_record["type"] == "Disk"
+    disks[vm_vbd_ref] = vm_vbd_record
+  end
+disks
+					</code></pre>
+
+					<p>reference: <a href="http://docs.vmd.citrix.com/XenServer/6.0.0/1.0/en_gb/api/">Xenserver API documentation</a></p>
+				</section>
+
+				<section>
+					<h2>xenapi-ruby helper for this code</h2>
+					<pre><code data-trim>
+# Get all disks for a VM
+disks = virtual_machine.vbds
+					</code></pre>
+				</section>
+
+				<section>
+					<h2>xenapi-ruby provides some helpers</h2>
+					<p>But the <a href="http://docs.vmd.citrix.com/XenServer/6.0.0/1.0/en_gb/api/">XenAPI</a> way is still valid</p>
+				</section>
+
+				<section>
+					<h2>Starting infrastructure</h2>
+					<p>One pool, one firewall (providing NAT) and one DHCP server</p>
+				</section>
+
+				<section>
+					<h2>Something like this...</h2>
+					<img src="img/first-cloud-infra.jpg">
+				</section>
+
+				<section>
+					<h2>Async all over the place</h2>
+					<p>started with <a href="https://github.com/stompgem/stomp">ActiveMQ</a> and <a href="https://github.com/stompgem/stomp">Stomp</a></p>
+				</section>
+
+				<section>
+					<h2>Different queue implementations</h2>
+					<p>XMPP, ActiveMQ (+ Stomp), Resque</p>
+				</section>
+
+				<section>
+					<h2>Resque implementation example</h2>
+					<pre><code data-trim>
+require "consumers/resque/configuration"
+
+module Resque
+  class Consumer
+
+    class << self
+      def queue(name)
+        @queue = name
+      end
+
+      ...
+					</code></pre>
+					<p>app/consumers/resque/consumer.rb</p>
+				</section>
+
+				<section>
+					<h2>XMPP implementation example</h2>
+					<pre><code data-trim>
+require 'xmpp4r'
+
+module XMPP
+  class Consumer
+
+    class << self
+      attr_reader :queue_name, :queued_process, :timeout_value
+
+      def queue(name)
+        @queue_name = "#{name}@localhost"
+      end
+
+      ...
+					</code></pre>
+					<p>app/consumers/xmpp/consumer.rb</p>
+				</section>
+
+				<section>
+					<h2>Easily changeable</h2>
+					<pre><code data-trim>
+# -*- coding: UTF-8 -*-
+Consumer = Resque::Consumer
+					</code></pre>
+					<p>app/consumers/consumer.rb</p>
+				</section>
+
+				<section>
+					<h2>Resque won</h2>
+					<p>BTW</p>
+				</section>
+
+				<section>
+					<h2>Virtual machine Installation process</h2>
+					<p><a href="http://github.com/locaweb/bpmachine">http://github.com/locaweb/bpmachine</a></p>
+				</section>
+
+				<section>
+					<h2>bpmachine example</h2>
+					<pre><code data-trim>
+process :of => :install do
+  must_be :machine_created
+
+  transition :select_ips,
+    :from => :machine_created,
+    :to => :ips_selected
+
+  transition :queue_dhcp_for_install,
+    :from => :ips_selected,
+    :to => :dhcp_synchronized
+
+  ...
+					</code></pre>
+				</section>
+
+				<section>
+					<h2>and the steps</h2>
+					<pre><code data-trim>
+module InstallSteps
+  def select_ips
+    log_activity(:info, :id => id, :status => 'starting')
+    create_ip(primary=true) unless primary_ip_pair
+    log_activity(:info, :id => id, :status => 'done')
+  end
+
+  def queue_dhcp_for_install
+    ...
+  end
+
+					</code></pre>
+                    <p>app/steps/install_steps.rb</p>
+				</section>
+
+				<section>
+					<h2>Get the name and IP</h2>
+					<p>A different app to handle these</p>
+				</section>
+
+				<section>
+					<h2>DHCP configuration</h2>
+					<p>isc-dhcp</p>
+				</section>
+
+				<section>
+					<h2>Dummy dhcp explanation</h2>
+					<img src="img/simple-dhcp-explanation.jpg">
+				</section>
+
+				<section>
+					<h2>ISC DHCP file example</h2>
+					<pre><code data-trim>
+# cpro0007
+host 3ea808bd-5ef0-4227-a617-f5b0694e408c{
+    hardware ethernet 00:25:22:bd:d1:20;
+    fixed-address 186.202.1.7;
+    option host-name "cpro0007";
+}
+
+# cpro0051
+host 3ea808bd-5ef0-4227-a617-cf5b0694e408 {
+    hardware ethernet 00:25:22:bd:d1:21;
+    fixed-address 186.202.1.8;
+    option host-name "cpro0051";
+}
+					</code></pre>
+				</section>
+
+				<section>
+					<h2>ERB file</h2>
+					<pre><code data-trim>
+<% vms.each do |vm| %>
+# <%= vm.name %>
+host <%= vm.uuid %> {
+    hardware ethernet <%= vm.mac %>;
+    fixed-address <%= vm.private_ip.address %>;
+    option host-name \"<%= vm.name %>\";
+}
+<% end %>
+					</code></pre>
+				</section>
+
+				<section>
+					<h2>Simple script for DHCP</h2>
+					<pre><code data-trim>
+# Prepare isc dhcp file
+echo -e "<%= dhcp_config %>" > /etc/dhcp/<%= Config[:dhcp_conf_file] %>
+
+# Restart DHCP
+sudo /etc/init.d/isc-dhcp-server restart
+					</code></pre>
+				</section>
+
+				<section>
+					<h2>Net::SSH as Transport layer</h2>
+					<pre><code data-trim>
+Net::SSH.start(@host, @user, ssh_options) do |ssh|
+  ssh_result = ssh.open_channel do |channel|
+	channel.request_pty do |chn, success|
+	  raise "Could not obtain pty from ssh" unless success
+	  chn[:out] = ""
+	  chn.exec command
+
+      ...
+					</code></pre>
+				</section>
+
+				<section>
+					<h2>Firewall configurations</h2>
+					<p>default DROP</p>
+				</section>
+
+				<section>
+					<h2>Adding some firewall rules</h2>
+					<pre><code data-trim>
+iptables -A <%= internal_address %>/32 \
+-p <%= rule.filter_protocol %> \
+-s <%= rule.filter_address %> \
+-d <%= internal_address %> \
+--dport <%= rule.filter_port %> \
+-j ACCEPT
+					</code></pre>
+				</section>
+
+				<section>
+					<h2>Configuring NAT</h2>
+					<pre><code data-trim>
+# Configuring NAT
+...
+
+iptables -t nat -A PREROUTING -d <%= rule.external_address %> \
+-j DNAT --to-destination <%= rule.internal_address %>
+
+iptables -t nat -A POSTROUTING -s <%= rule.internal_address %> \
+-j SNAT --to-source <%= rule.external_address %>
+
+...
+					</code></pre>
+				</section>
+
+				<section>
+					<h2>VNC access</h2>
+					<img src="img/xvp.png">
+					<p>Provided by <a href="http://www.xvpsource.org/">Xen VNC Proxy (a.k.a XVP)</a></p>
+				</section>
+
+				<section>
+					<h2>Example XVP file</h2>
+					<pre><code data-trim>
+POOL XENSERVERPOOL1
+  DOMAIN ""
+  MANAGER root proxy_password_encrypted_hash
+  HOST 10.20.30.40
+  VM 7890 4344dc8f-1bdd-4b65-812a-a0dc9b27256e console1_encrypted_pass
+  VM 7891 c5b2d28e-4c11-492f-9d09-33670876cb4a console2_encrypted_pass
+					</code></pre>
+				</section>
+
+				<section>
+					<h2>Generated from XVP binary</h2>
+					<pre><code data-trim>
+# for hosts
+/bin/echo -e "proxy_password_here" | /usr/sbin/xvp -x
+
+# for each console
+/bin/echo -e "console_password_here" | /usr/sbin/xvp -e
+					</code></pre>
+				</section>
+
+				<section>
+					<h2>Wait...XVP is <strong>open source</strong></h2>
+				</section>
+
+				<section>
+					<h2>Ruby version</h2>
+					<pre><code data-trim>
+def encrypt_vnc(password)
+  key = [0xc1, 0x24, 0x08, 0x99, 0xc2, 0x26, 0x07, 0x05]
+  des = OpenSSL::Cipher::Cipher.new("des-ecb")
+  des.key = key.map(&:chr).join
+  des.encrypt
+  des.update(password).unpack('H*').first
+end
+					</code></pre>
+					<p class="fragment">coisa linda!</p>
+				</section>
+
+				<section>
+					<h2>Post install process</h2>
+					<p>VM already shipped by Xen</p>
+				</section>
+
+				<section>
+					<h2>Windows? Linux?</h2>
+					<p>Specialized post install</p>
+				</section>
+
+				<section>
+					<h2>Done by virtual machine type</h2>
+					<pre><code data-trim>
+def post_installers
+  { :windows2003 => PostInstall::Windows,
+    :windows2008 => PostInstall::Windows,
+    :linux       => PostInstall::Linux }
+end
+
+...
+
+def post_install
+  post_installers[code.to_sym].new
+end
+					</code></pre>
+				</section>
+
+				<section>
+					<h2>Simplified, of course... We have:</h2>
+					<p>centos5, centos6, ubuntu9.04, ubuntu9.10, ubuntu10.04, ubuntu10.10, debian5, debian6, windows2003, ...</p>
+				</section>
+
+				<section>
+					<h2>And managed ones!</h2>
+					<p>linux + cpanel, linux + plesk, windows + plesk, ...</p>
+				</section>
+
+				<section>
+					<h2>Linux post install</h2>
+					<p>SSH and bash scripts</p>
+				</section>
+
+				<section>
+					<h2>Windows post install</h2>
+					<p><a href="https://github.com/WinRb/WinRM">Winrm</a> and powershell scripts</p>
+				</section>
+
+				<section>
+					<h2>Partitioning disks example</h2>
+					<p><a href="http://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)">LVM</a> for Linux and <a href="http://en.wikipedia.org/wiki/Diskpart">Diskpart</a> for Windows</p>
+				</section>
+
+				<section>
+					<h2>More and more steps</h2>
+					<ul>
+						<li>Added basic monitoring</li>
+						<li>Configure DNS</li>
+						<li>VM cleanup</li>
+						<li>and so on...</li>
+					</ul>
+				</section>
+
+				<section>
+					<h2>And we're done!</h2>
+					<p>production ready</p>
+				</section>
+
+				<section>
+					<h2>Shipped with a simple architecture</h2>
+					<img src="img/first-cloud-infra.jpg">
+				</section>
+
+				<section>
+					<h2>Multi pool</h2>
+					<p>"all your pools are belong to us"</p>
+				</section>
+
+				<section>
+					<h2>Multi pool</h2>
+					<img src="img/multi-pool.jpg">
+				</section>
+
+				<section>
+					<h2>Matrix machines</h2>
+					<p>and their maintenance</p>
+				</section>
+
+				<section>
+					<h2>A wild windows Matrix Machine appeared!</h2>
+					<img src="img/matrix-machines1.jpg">
+				</section>
+
+				<section>
+					<h2>Security fix released</h2>
+					<img src="img/matrix-machines2.jpg">
+				</section>
+
+				<section>
+					<h2>Security fix applied</h2>
+					<img src="img/matrix-machines3.jpg">
+				</section>
+
+				<section>
+					<h2>Ok...But we have more!</h2>
+					<img src="img/matrix-machines4.jpg">
+				</section>
+
+				<section>
+					<h2>We can deal with it!</h2>
+					<img src="img/matrix-machines5.jpg">
+				</section>
+
+				<section>
+					<h2>But....WAT!</h2>
+					<img src="img/matrix-machines6.jpg">
+				</section>
+
+				<section>
+					<h2>Numbers!</h2>
+					<ul>
+						<li>~ 7000 VMs</li>
+						<li>~ 25 pools</li>
+						<li>~ 300 hosts</li>
+					</ul>
+				</section>
+
+				<section>
+					<h2>Xen import and export</h2>
+					<p>not so well documented</p>
+				</section>
+
+				<section>
+					<h2>Using HTTP!</h2>
+					<pre><code data-trim>
+def export(vm_uuid, options = {})
+  options = {:to => "/tmp/export_file"}.merge(options)
+  file = File.open(options[:to], "wb")
+  session_ref = self.key
+  task_ref = self.task.create "export vm #{vm_uuid}", "export job"
+
+  path = "/export?session_id=#{session_ref} ... "
+  uri  = URI.parse "http://#{master_address}#{path}"
+
+  Net::HTTP.get_response(uri) do |res|
+    res.read_body {|chunk| file.write chunk }
+  end
+  options[:to]
+ensure
+  file.close rescue nil
+  self.task.destroy(task_ref) rescue nil
+end
+					</code></pre>
+				</section>
+
+				<section>
+					<h2>Multi storage</h2>
+					<p>or...datasets!</p>
+				</section>
+
+				<section>
+					<h2>Multi firewall</h2>
+					<p>avoiding package overflow</p>
+				</section>
+
+				<section>
+					<h2>So basically...we have this:</h2>
+					<img src="img/complex-architecture.jpg">
+				</section>
+
+				<section>
+					<h2>Time to break responsabilities</h2>
+					<p>by improving the infrastructure</p>
+				</section>
+
+				<section>
+					<h2>New network infrastructure</h2>
+					<p>dedicated servers for firewall and dhcp</p>
+				</section>
+
+				<section>
+					<h2>Before</h2>
+					<img src="img/old-infrastructure.jpg">
+				</section>
+
+				<section>
+					<h2>Now</h2>
+					<img src="img/new-infrastructure.jpg">
+				</section>
+
+				<section>
+					<h2>Quantum</h2>
+					<p>from <a href="http://www.openstack.org/">the openstack project</a></p>
+				</section>
+
+				<section>
+					<h2>Quantum + Openvswitch</h2>
+					<p><a href="https://github.com/locaweb/quantum/tree/fix_quantum_stuff/quantum/plugins/l2l3">Locaweb quantum plugin</a> to use <a href="http://openvswitch.org">openvswitch</a></p>
+				</section>
+
+				<section>
+					<h2>Not SSH anymore</h2>
+					<p>Queueing and consuming using RabbitMQ</p>
+				</section>
+
+				<section>
+					<h2>New firewall and dhcp architecture</h2>
+					<img src="img/rabbitmq.jpg">
+				</section>
+
+				<section>
+					<h2>New hypervisors to support</h2>
+					<p>KVM, VMware</p>
+				</section>
+
+				<section>
+					<h2>Simplestack!</h2>
+					<p><a href="https://github.com/locaweb/simplestack">https://github.com/locaweb/simplestack</a></p>
+				</section>
+
+				<section>
+					<h2>A proxy for hypervisors</h2>
+					<img src="img/simplestack.jpg">
+				</section>
+
+				<section>
+					<h2>Simplestack instead of xenapi directly</h2>
+					<pre><code data-trim>
+# Old xenapi code
+session.VM.get_by_uuid(virtual_machine.uuid)
+
+# Simplestack
+pool.on_simplestack.guests.find(virtual_machine.uuid)
+					</code></pre>
+					<p>Using <a href="https://github.com/locaweb/ruby-simplestack-client">ruby simplestack client</a></p>
+				</section>
+
+				<section>
+					<h2>Features worth mentioning</h2>
+				</section>
+
+				<section>
+					<h2>Autoscale and alerts</h2>
+					<p>driven by monitoring</p>
+				</section>
+
+				<section>
+					<h2>Leela</h2>
+					<p><a href="https://github.com/locaweb/leela">https://github.com/locaweb/leela</a></p>
+				</section>
+
+				<section>
+					<h2>The flow</h2>
+					<img src="img/xmpp.jpg">
+				</section>
+
+				<section>
+					<h2>Just messaging</h2>
+					<img src="img/xmpp-pidgin.jpg">
+				</section>
+
+				<section>
+					<h2>Blather and daemon tools</h2>
+					<pre><code data-trim>
+require 'blather/client'
+DaemonKit::Application.running!
+
+message :chat?, :body do |m|
+  begin
+    if Weatherman::Message.should_process?(m)
+      message = JSON.parse(m.body, :allow_nan => true)["results"]
+
+      unless message["event"].nil?
+        Weatherman::Message.process(message["event"])
+      end
+    end
+  rescue => e
+    DaemonKit.logger.error "Invalid message #{m.body}"
+    DaemonKit.logger.error e.backtrace
+  end
+end
+					</code></pre>
+				</section>
+
+				<section>
+					<h2>Heterogeneous environment</h2>
+					<p>new features and support for all versions!</p>
+				</section>
+
+				<section>
+					<h2>Xen pool knows its network version</h2>
+					<pre><code data-trim>
+# -*- coding: UTF-8 -*-
+module Network
+  module Manager
+    extend self
+
+    def for(pool)
+      pool.network_version.constantize.new
+    end
+  end
+end
+					</code></pre>
+				</section>
+
+				<section>
+					<h2>Different behaviors from version 1</h2>
+					<pre><code data-trim>
+# -*- coding: UTF-8 -*-
+module Network
+  class Ver1
+    def internal_vlan?
+      true
+    end
+
+    def installation_ip(vm)
+      vm.public_ip.address
+    end
+  end
+end
+					</code></pre>
+				</section>
+
+				<section>
+					<h2>To network version 2</h2>
+					<pre><code data-trim>
+# -*- coding: UTF-8 -*-
+module Network
+  class Ver2
+    def internal_vlan?
+      false
+    end
+
+    def installation_ip(vm)
+      vm.on_simplestack.ip
+    end
+  end
+end
+					</code></pre>
+				</section>
+
+				<section>
+					<h2>Multiple implementations for:</h2>
+					<ul>
+						<li>network configurations</li>
+						<li>firewall implementations</li>
+						<li>post install methods</li>
+					</ul>
+				</section>
+
+				<section>
+					<h2>Lessons learned</h2>
+					<ul>
+						<li>Start small and grow fast</li>
+						<li>OOP helps a lot to keep the code organized</li>
+						<li>Multiple projects</li>
+						<li>Multiple languages</li>
+					</ul>
+				</section>
+
+				<section>
+					<h1>Thanks!</h1>
+					<h3>By Willian Molinari (PotHix)</h3>
+				</section>
+			</div>
+		</div>
+
+		<script src="lib/js/head.min.js"></script>
+		<script src="js/reveal.min.js"></script>
+
+		<script>
+			// Full list of configuration options available here:
+			// https://github.com/hakimel/reveal.js#configuration
+			Reveal.initialize({
+				controls: true,
+				progress: true,
+				history: true,
+				center: true,
+
+				theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
+				transition: Reveal.getQueryHash().transition || 'default', // default/cube/page/concave/zoom/linear/fade/none
+
+				// Optional libraries used to extend on reveal.js
+				dependencies: [
+					{ src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+					{ src: 'plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+					{ src: 'plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+					{ src: 'plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }
+					// { src: 'plugin/search/search.js', async: true, condition: function() { return !!document.body.classList; } }
+					// { src: 'plugin/remotes/remotes.js', async: true, condition: function() { return !!document.body.classList; } }
+				]
+			});
+
+		</script>
+
+	</body>
+</html>
